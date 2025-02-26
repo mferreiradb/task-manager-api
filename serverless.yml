@@ -1,0 +1,90 @@
+service: task-manager-api-${env:CLOUD_ENVIRONMENT}
+frameworkVersion: '4'
+useDotenv: true
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: v1
+  stackName: ${self:service}-${self:provider.stage}
+
+  # deploymentBucket:
+  #   name: ${env:AWS_DEPLOYMENT_BUCKET_NAME}
+
+  tags:
+    Owner: Renan Learning
+    ManagedBy: Serverless
+    Project: Task Manager
+    Environment: ${env:CLOUD_ENVIRONMENT}
+
+  environment:
+    NODE_ENV: ${env:NODE_ENV}
+    PORT: ${env:PORT}
+    LOG_LEVEL: ${env:LOG_LEVEL}
+    CORS_ORIGIN: ${env:CORS_ORIGIN}
+    CLOUD_ENVIRONMENT: ${env:CLOUD_ENVIRONMENT}
+    HEALTH_BUILD: ${env:HEALTH_BUILD}
+    HEALTH_RELEASE: ${env:HEALTH_RELEASE}
+    DATABASE_URL: ${env:DATABASE_URL}
+    DATABASE_PRISMA_BINARY_TARGETS: ${env:DATABASE_PRISMA_BINARY_TARGETS}
+
+  apiName: Task Manager - API - ${self:provider.stage}-${env:CLOUD_ENVIRONMENT}
+  logRetentionInDays: 30
+  timeout: 10
+  memorySize: 256
+  tracing:
+    apiGateway: true
+    lambda: true
+
+plugins:
+  - serverless-offline
+  - serverless-prune-plugin
+  - serverless-plugin-ifelse
+
+custom:
+  serverless-offline:
+    httpPort: "${env:PORT}"
+    lambdaPort: 4002
+  prune:
+    automatic: true
+    number: 3
+  serverlessIfElse:
+    - If: '"${env:NODE_ENV}" == "production"'
+      Exclude:
+        - functions.api.events.0.httpApi
+
+functions:
+  taskManagerAPI:
+    name: ${self:service}_${self:provider.stage}
+    description: Task Manager API
+    handler: src/main/server.handler
+    events:
+      - httpApi: '*'
+    url:
+      cors:
+        allowedOrigins: '*'
+        allowedHeaders: '*'
+        allowedMethods: '*'
+
+package:
+  individually: true
+  patterns:
+    - src/**
+    - package-lock.json
+    - package.json
+    - tsconfig.json
+    - node_modules/.prisma/client/**
+    - serverless.yml
+    - '!tests/**'
+    - '!.github/**'
+    - '!.git/**'
+    - '!**/.env*'
+    - '!.editorconfig'
+    - '!.eslintignore'
+    - '!.eslintrc.js'
+    - '!.gitignore'
+    - '!.prettierrc.json'
+    - '!.vitest.config.ts'
+    - '!dep-install.sh'
+  excludeDevDependencies: true
+
